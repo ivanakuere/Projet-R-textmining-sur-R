@@ -1,0 +1,470 @@
+---
+title: "PROJET_STATISTIQUE_R"
+author: "Ivana_Moussa_Gning"
+date: "`r Sys.Date()`"
+output: word_document
+
+---
+
+```{r setup, include=FALSE}
+getwd()
+
+knitr::opts_chunk$set(echo = TRUE)
+```
+# Projet statistique sous R \
+# INTRODUCTION 
+Notre travail consiste à faire le traitement de texte en utilisant les techniques statistiques.\
+Le textemining permet d'extraire des connaissances significatives à partir d'un corpus ou d'un texte.\
+Pour faire le textmining il est necessaire de : \
+# Cas d'une base de donnée
+1- pretraitement du texte\
+2- frequence des mots ou des ngrammes \
+3- matrice terme des mots \
+4- nuage de mots \
+5- le reseau des mots \
+# Cas de messages whatsapp facebook twitter livre
+1- Chronologie des messages \
+2- classement des ID selon le nombre de messsage envoyé\
+3- les mots les plus fréquents utilisés par chaque ID\
+4- comparaison des mots les plus fréquents \
+
+# Packages necessaires
+1- pretraitement du texte\
+les packages necessaires pour faire le prétraitement sont : \
+```{r message=FALSE, warning=FALSE}
+library(tidytext)
+library(dplyr)
+library(tm)
+```
+# tidytext et dplyr 
+Fonctions necessaires \
+tidytext::unnest_tokens(tbl,output,input,token,format,to_lower) 
+  tidytext:: stop_words() \
+  dplyr:: anti_join() \
+  dplyr:: filter() \
+  dplyr:: count() \
+  dplyr:: mutate() \
+  dplyr:: filter() \
+  dplyr:: anti_joint()\ 
+  dplyr:: tibble()  \
+## tm
+  tm:: tm_map(txte1, removePunctuation) \
+  tm:: tm_map(txte1, removeNumbers)    \
+  tm:: tm_map(txte1, removeWords, stopwords("english")) \
+  tm:: tm_map(txte1, stripWhitespace)   \
+  tm:: tm_map(txte1, tm_reduce)   \
+  tm:: VCorpus(VectorSource()) \
+
+2-Après avoir faire le prétraitement il est intéressant de d'afficher la fréquence des mots ou des ngrammes.On utilise le package ggplot2.\ Ainsi on peut faire la matrice de term .\
+Il s'agit de transformer le texte en une matrice document-terme, où chaque ligne correspond à un document et chaque colonne correspond à un mot.\
+<--  tm::DocumentTermMatrix. --> \
+L'étape suivante consiste à faire le nuage de mots.Pour cela nous verrons le package necessaire.\
+```{r message=FALSE, warning=FALSE}
+library(wordcloud)
+```
+### Après avoir réalisé le nuage des mots , il est necessaire de faire le réseau des mots .
+library(ggraph) 
+
+\newpage
+# Cas pratique 
+```{r warning=FALSE}
+library(readxl)
+txte <- readLines('FormulaMilk_3months.txt' , encoding = "UTF-8")
+txte <- txte[1:3]
+```
+# Prétraitement 
+```{r warning=FALSE}
+txte <- removePunctuation(txte)
+txte[1:2]
+```
+# Supprimer les nombres
+```{r warning=FALSE}
+txte <- removeNumbers(txte)
+txte[1:3]
+```
+# Convertir le texte en minuscule
+```{r warning=FALSE}
+for(i in 1:length(txte))
+   txte[i]=tolower(txte[i])
+txte[1:3]
+```
+# Supprimer votre propre liste de mots non désirés
+```{r warning=FALSE}
+txte <- removeWords(txte, c("for", "his","a","of","is","hes","IN","I","but","i")) 
+txte[1:3]
+```
+# transformation dans un format Corpus 
+```{r warning=FALSE}
+txte <- Corpus(VectorSource(txte))
+txte
+```
+# Transformation du Corpus en une matrice (longueur > 3)
+```{r warning=FALSE}
+tdm <- TermDocumentMatrix(txte,control = list(minWordLength=3))
+
+```
+# mot le plus fréquents dans le texte
+```{r warning=FALSE}
+m <- as.matrix(tdm)
+freqWords=rowSums(m)
+freqWords=sort(freqWords , d=T)
+t(freqWords[1:6])
+```
+# Traçons maintenant le word cloud.
+```{r message=FALSE, warning=FALSE}
+freqWords=rowSums(m)
+v=sort(freqWords,d=T)
+dt=data.frame(word=names(v),freq=v)
+head(dt)
+par(bg="gray")
+wordcloud(dt$word,dt$freq,min.freq =5 ,stack=T,random.order = F)
+```
+# Trouver les termes les plus fréquents
+```{r warning=FALSE}
+freq.terms <- findFreqTerms(tdm, lowfreq = 20)
+freq.terms
+
+term.freq <- rowSums(as.matrix(tdm))
+term.freq <- subset(term.freq, term.freq >= 2)
+df <- data.frame(term = names(term.freq), freq = term.freq)
+```
+```{r}
+library(ggplot2)
+ggplot(df, aes(x=term, y=freq)) + geom_bar(stat="identity") +
+    coord_flip() + theme(axis.text=element_text(size=7))
+
+```
+
+
+
+
+
+# Recherche d’associations
+```{r warning=FALSE}
+findAssocs(tdm, "milk", 0.2)
+findAssocs(tdm, 'formula', 0.2)
+```
+
+\newpage 
+#Cas pratique 2
+```{r warning=FALSE}
+df<-read_xlsx("lait.xlsx")
+base <- df %>% dplyr:: distinct(text, .keep_all = TRUE)
+base <- df[1:100,] %>% dplyr::select(text)
+```
+# Numerotation des aliments
+```{r warning=FALSE}
+base1<-tibble(index_person=1:100, opinion=base$text)
+head(base1$opinion,1)
+```
+# creation des tokens des mots indexés
+```{r warning=FALSE}
+base_mot<-base1 %>% 
+  tidytext::unnest_tokens(word, opinion)
+
+```
+# Suppression des mots vides
+```{r warning=FALSE}
+base_mot<-base_mot%>%anti_join(stop_words)
+```
+# creations du dictionnaire des mots vides
+```{r warning=FALSE}
+dictionnaire<-data.frame(word =c("t.co","to","i","are","https","the","their","his","to","for","i","I","l","we","my","of","from","a","at","he","that","so","if","our"))
+                         
+texte_filtre<-anti_join(base_mot,dictionnaire,by="word")
+ivi<-base_mot %>%
+  dplyr::filter(!word %in%dictionnaire )
+```
+# Supprimer les chiffres
+```{r warning=FALSE}
+texte_filtre<-texte_filtre %>% filter(!grepl("\\d",word))
+```
+# fréquence des mots
+```{r warning=FALSE}
+frequence_mot<-base_mot%>%dplyr::count(word,sort=TRUE)%>%
+  filter(!word %in% dictionnaire$word) %>% 
+  filter(n > 20)
+```
+# histogramme des mots
+```{r warning=FALSE}
+base_mot %>%
+  dplyr::count(word, sort = TRUE) %>%filter(!word %in% dictionnaire$word) %>% 
+  filter(n > 35) %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(n, word)) +
+  geom_col() +
+  ylab(" mots")+
+  xlab("fréquence des mots")+
+  ggtitle("Histogramme des mots les plus fréquents")
+```
+# Mots intéressant
+```{r warning=FALSE}
+mot_inter<-frequence_mot[1:7,] %>% dplyr::select(word)
+```
+# nuages de mots avec tm
+```{r warning=FALSE}
+dtm <- TermDocumentMatrix(base_mot%>%dplyr::mutate(word=stringr::str_replace_all(.$word, "â", " ")) %>% filter(!word %in% dictionnaire$word))
+m <- as.matrix(dtm)
+v <- sort(rowSums(m),decreasing=TRUE)
+d <- data.frame(word = names(v),freq=v)
+head(d, 10)
+set.seed(1234)
+wordcloud(words = d$word, freq = d$freq, min.freq = 10000,
+          max.words=200, random.order=FALSE, rot.per=0.35, 
+          colors=brewer.pal(8, "Dark2"))
+title(main = "Nuages des mots fréquents")
+```
+# nuages des mots
+```{r warning=FALSE}
+base2 <- base1 %>%
+  dplyr::mutate(text = stringr::str_replace_all(.$opinion, "â", " "))  %>%
+  tidytext::unnest_tokens(word, text) %>% 
+  filter(!word %in% dictionnaire$word) %>%
+  dplyr::count(word, sort = TRUE)%>% 
+  filter(n > 20)
+
+wordcloud(base2$word, base2$n, max.words = 200, rot.per = FALSE, colors = c("#973232", "#1E5B5B", "#6D8D2F", "#287928"))
+title(main = "Nuages des mots fréquents")
+
+```
+# Gestion des bigrams
+```{r warning=FALSE}
+bigram <- base1 %>%
+  unnest_tokens(bigram, opinion, token = "ngrams", n = 2) %>%
+  filter(!is.na(bigram))
+bigrams_separated <-bigram %>%
+  tidyr::separate(bigram, c("word1", "word2"), sep = " ") 
+```
+# Filtrage du bigramme
+```{r warning=FALSE}
+bigrams_filtered <- bigrams_separated %>%
+  filter(!word1 %in% dictionnaire$word) %>%
+  filter(!word2 %in% dictionnaire$word)
+```
+# recompter les aliments
+```{r warning=FALSE}
+bigram_counts <- bigrams_filtered %>%
+  dplyr::count(word1, word2, sort = TRUE)
+```
+# Graphes des bigrams
+```{r warning=FALSE}
+graphe_bigram <- base1 %>%
+  dplyr::mutate(text = stringr::str_replace_all(.$opinion, "â", " "))  %>%
+  tidytext::unnest_tokens(bigram, text, token = "ngrams", n = 2) %>%
+  filter(!is.na(bigram)) %>% 
+  dplyr::count(bigram, sort = TRUE)%>% 
+  filter(n > 10)
+wordcloud(graphe_bigram$bigram, graphe_bigram$n, max.bigram = 200, rot.per = FALSE, colors = c("#973232", "#1E5B5B", "#6D8D2F", "#287928"))
+title(main = "Nuages des 2_GRAMM")
+```
+\newpage
+
+# Cas pratique 3 : messages whatsapp
+
+la base de l'ensae 
+```{r warning=FALSE}
+library(dplyr)
+library(rwhatsapp)
+
+ensae <- rwa_read("ensae.txt")%>% filter(!is.na(author))
+colnames(ensae)
+```
+# la base des isep
+```{r}
+isep <- rwa_read("isep.txt")%>% filter(!is.na(author))
+colnames(ensae)
+```
+# chronologie des messages entre les deux groupes 
+```{r}
+library(lubridate)
+library(ggplot2)
+
+ecole <- bind_rows(ensae %>% 
+                      mutate(source = "ensae"),
+                    isep %>% 
+                      mutate(source = "isep")) %>%
+  mutate(Temps = ymd_hms(time))
+
+ggplot(ecole, aes(x = Temps, fill = source)) +
+  geom_histogram(position = "identity", bins = 20, show.legend = FALSE) +
+  facet_wrap(~source, ncol = 1)
+```
+# classement des personnes selon les messages  
+ isep 
+```{r}
+isep %>%
+  count(author) %>%
+  ggplot(aes(x = reorder(author, n), y = n, fill=author)) +
+  geom_bar(stat = "identity") + xlab("Auteur") + ylab("Nombre de Messages") +
+  coord_flip() + theme_bw() +
+  ggtitle("classement des personnes")
+```
+ ensae 
+```{r}
+ensae %>%
+  count(author) %>%
+  top_n(10, wt = n) %>%
+  ggplot(aes(x = reorder(author, n), y = n, fill = author)) +
+  geom_bar(stat = "identity") +
+  xlab("Auteur") + ylab("Nombre de Messages") + coord_flip() + theme_bw() +
+  ggtitle("classement des personnes")
+```
+# les mots frÃ©quements utilisÃ©s par ces personnes 
+ isep 
+```{r}
+library(stopwords)
+library(tidytext)
+vide <- c(stopwords(language = 'fr'),"sticker","omis","absente","image",
+          "document","message","supprimÃ©","manquant","c'est","oui","a","ok",
+          "pa","Ã§a","hein","va","lÃ ")
+isepnew <- isep%>% unnest_tokens(input = text,output = word) %>%
+  filter(!word %in% vide)
+isepnew %>% count(author, word, sort = TRUE) %>% 
+  group_by(author) %>% 
+  top_n(n = 3, n) %>%
+  ggplot(aes(x = reorder_within(word, n, author), y = n, fill = author)) +
+  geom_col(show.legend = FALSE) +
+  ylab("Mots") +
+  xlab("frÃ©quence") +
+  coord_flip() +
+  facet_wrap(~author, ncol = 2, scales = "free_y") +
+  scale_x_reordered() +
+  ggtitle("Mots frÃ©quemment utilisÃ©s par chaque personne")
+```
+# etudions maintenant la base ecole
+. Fréquences des mots
+. notoyons d'abord la base ecole
+```{r}
+ecolenew <- ecole%>% unnest_tokens(input = text,output = word) %>%
+  filter(!word %in% vide)
+
+```
+# fréquences de mots pour selon la source 
+```{r}
+fréquence <- ecolenew %>% 
+  count(source, word, sort = TRUE) %>% 
+  left_join(ecolenew %>% 
+              count(source, name = "total")) %>%
+  mutate(freq = n/total)
+
+fréquence
+
+```
+# cadre de donnÃ©es de forme diffÃ©rente
+```{r}
+library(tidyr)
+fréquence <- fréquence %>% 
+  select(source, word, freq) %>% 
+  pivot_wider(names_from = source, values_from = freq) %>%
+  arrange(isep, ensae)
+
+fréquence
+```
+# compararaison des fréquences des mots entre les deux groupes 
+```{r}
+library(scales)
+
+ggplot(fréquence, aes(isep, ensae)) +
+  geom_jitter(alpha = 0.1, size = 2.5, width = 0.25, height = 0.25) +
+  geom_text(aes(label = word), check_overlap = TRUE, vjust = 1.5) +
+  scale_x_log10(labels = percent_format()) +
+  scale_y_log10(labels = percent_format()) +
+  geom_abline(color = "red")
+
+```
+# compararaison de l'utilisation des mots
+
+```{r}
+word_ratios <- ecolenew %>%
+  count(word, source) %>%
+  group_by(word) %>%
+  filter(sum(n) >= 10) %>%
+  ungroup() %>%
+  pivot_wider(names_from = source, values_from = n, values_fill = 0) %>%
+  mutate_if(is.numeric, list(~(. + 1) / (sum(.) + 1))) %>%
+  mutate(logratio = log(ensae /isep)) %>%
+  arrange(desc(logratio))
+
+word_ratios %>% arrange(abs(logratio))
+
+```
+# graphique 
+```{r}
+word_ratios %>%
+  group_by(logratio < 0) %>%
+  slice_max(abs(logratio), n = 10) %>% 
+  ungroup() %>%
+  mutate(word = reorder(word, logratio)) %>%
+  ggplot(aes(word, logratio, fill = logratio < 0)) +
+  geom_col(show.legend = FALSE) +
+  coord_flip() +
+  ylab("rapport de cotes logarithmique (ensae/isep)") +
+  scale_fill_discrete(name = "", labels = c("ensae", "isep"))
+```
+#
+```{r}
+words_time <- ecolenew %>%
+  mutate(time_floor = floor_date(time, unit = "1 month")) %>%
+  count(time_floor, source, word) %>%
+  group_by(source, time_floor) %>%
+  mutate(time_total = sum(n)) %>%
+  group_by(source, word) %>%
+  mutate(word_total = sum(n)) %>%
+  ungroup() %>%
+  rename(count = n) %>%
+  filter(word_total > 30)
+
+words_time
+
+```
+# 
+```{r}
+nested_data <- words_time %>%
+  nest(data = c(-word, -source)) 
+
+nested_data
+```
+# 
+```{r}
+library(purrr)
+
+nested_models <- nested_data %>%
+  mutate(models = map(data, ~ glm(cbind(count, time_total) ~ time_floor, ., 
+                                  family = "binomial")))
+nested_models
+```
+#
+
+```{r}
+library(broom)
+
+slopes <- nested_models %>%
+  mutate(models = map(models, tidy)) %>%
+  unnest(cols = c(models)) %>%
+  filter(term == "time_floor") %>%
+  mutate(adjusted.p.value = p.adjust(p.value))
+
+top_slopes <- slopes %>%filter(adjusted.p.value < 0.05)
+
+top_slopes
+```
+# isep 
+```{r}
+words_time %>%
+  inner_join(top_slopes, by = c("word", "source")) %>%
+  filter(source == "isep") %>%
+  ggplot(aes(time_floor, count/time_total, color = word)) +
+  geom_line(size = 1.3) +
+  labs(x = NULL, y = "mots frequents")
+```
+# ensae
+```{r}
+words_time %>%
+  inner_join(top_slopes, by = c("word", "source")) %>%
+  filter(source == "ensae") %>%
+  ggplot(aes(time_floor, count/time_total, color = word)) +
+  geom_line(size = 1.3) +
+  labs(x = NULL, y = "mots frequents")       
+```
+
+    
